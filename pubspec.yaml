@@ -9,11 +9,24 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_bloc: 
+  equatable: 
+  camera: 
+  tflite_flutter: 
+  yaml: 
+  get_it: 
+  injectable: 
+  go_router:
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  build_runner: 
+  injectable_generator:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/models/
