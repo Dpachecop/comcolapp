@@ -27,107 +27,94 @@ class _CameraScreenContent extends StatefulWidget {
 }
 
 class _CameraScreenContentState extends State<_CameraScreenContent> {
-  String? currentFood;
-  int frameCount = 0;
-  bool isModalOpen = false;
-
-
-
-  void _handleDetection(CameraDetectionSuccess state) {
-    if (isModalOpen || state.detections.isEmpty) return;
-
-    final bestDetection = state.detections.reduce((a, b) => a.confidence > b.confidence ? a : b);
-
-    if (bestDetection.label == currentFood) {
-      frameCount++;
-    } else {
-      currentFood = bestDetection.label;
-      frameCount = 1;
-    }
-
-    if (frameCount >= 10 && !isModalOpen) {
-      isModalOpen = true;
-      showModalBottomSheet(
-        context: context,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (context) {
-          return Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.fastfood, size: 80, color: Colors.green),
-                const SizedBox(height: 16),
-                Text(
-                  currentFood!.toUpperCase(),
-                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Confianza: ${(bestDetection.confidence * 100).toStringAsFixed(1)}%',
-                  style: const TextStyle(fontSize: 18, color: Colors.black54),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          );
-        },
-      ).then((_) {
-        isModalOpen = false;
-        frameCount = 0;
-        currentFood = null;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('ComColApp'),
       ),
-      body: BlocListener<CameraBloc, CameraState>(
-        listener: (context, state) {
-          if (state is CameraDetectionSuccess) {
-            _handleDetection(state);
-          }
-        },
-        child: BlocBuilder<CameraBloc, CameraState>(
-          builder: (context, state) {
-            if (state is CameraLoading || state is CameraInitial) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (state is CameraError) {
-              return Center(child: Text('Error: ${state.message}'));
-            } else if (state is CameraReady || state is CameraDetectionSuccess) {
-              final controller = state is CameraReady 
-                  ? state.controller 
-                  : (state as CameraDetectionSuccess).controller;
-              final detections = state is CameraDetectionSuccess 
-                  ? state.detections 
-                  : <DetectionResult>[];
-                  
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  Positioned.fill(
-                    child: CameraPreview(controller),
+      body: BlocBuilder<CameraBloc, CameraState>(
+        builder: (context, state) {
+          if (state is CameraLoading || state is CameraInitial) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (state is CameraError) {
+            return Center(child: Text('Error: ${state.message}'));
+          } else if (state is CameraReady || state is CameraDetectionSuccess) {
+            final controller = state is CameraReady 
+                ? state.controller 
+                : (state as CameraDetectionSuccess).controller;
+            final detections = state is CameraDetectionSuccess 
+                ? state.detections 
+                : <DetectionResult>[];
+                
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                Positioned.fill(
+                  child: CameraPreview(controller),
+                ),
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _BoundingBoxPainter(
+                      detections: detections,
+                      screenSize: MediaQuery.of(context).size,
+                    ),
                   ),
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _BoundingBoxPainter(
-                        detections: detections,
-                        screenSize: MediaQuery.of(context).size,
+                ),
+                if (detections.isNotEmpty)
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+                      decoration: const BoxDecoration(
+                        color: Colors.white70,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                      ),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: detections.map((detection) {
+                            return Container(
+                              margin: const EdgeInsets.only(right: 12),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 4,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.fastfood, color: Colors.white, size: 24),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${detection.label} ${(detection.confidence * 100).toStringAsFixed(1)}%',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
                       ),
                     ),
                   ),
-                ],
-              );
-            }
-            return const SizedBox.shrink();
-          },
-        ),
+              ],
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
