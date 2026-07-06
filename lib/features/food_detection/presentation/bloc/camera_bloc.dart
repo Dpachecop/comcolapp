@@ -84,7 +84,7 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
       await _controller!.dispose();
       _controller = null;
     }
-    _tfliteDataSource.dispose();
+    await _tfliteDataSource.dispose();
     return super.close();
   }
 }

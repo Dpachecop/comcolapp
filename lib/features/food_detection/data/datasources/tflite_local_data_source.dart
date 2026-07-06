@@ -12,7 +12,7 @@ import '../../domain/entities/detection_result.dart';
 abstract class TfliteLocalDataSource {
   Future<void> initialize();
   Future<List<DetectionResult>> processImage(CameraImage image);
-  void dispose();
+  Future<void> dispose();
 }
 
 class IsolateParams {
@@ -41,9 +41,13 @@ class TfliteLocalDataSourceImpl implements TfliteLocalDataSource {
   List<String>? _labels;
   static const double _confidenceThreshold = 0.5;
   static const double _iouThreshold = 0.45;
+  
+  Future<List<DetectionResult>>? _activeInference;
+  bool _isDisposed = false;
 
   @override
   Future<void> initialize() async {
+    _isDisposed = false;
     try {
       _interpreter = await Interpreter.fromAsset('assets/models/best.tflite');
       final yamlString = await rootBundle.loadString('assets/models/data.yaml');
@@ -67,7 +71,7 @@ class TfliteLocalDataSourceImpl implements TfliteLocalDataSource {
 
   @override
   Future<List<DetectionResult>> processImage(CameraImage image) async {
-    if (_interpreter == null || _labels == null || _labels!.isEmpty) return [];
+    if (_isDisposed || _interpreter == null || _labels == null || _labels!.isEmpty) return [];
 
     final planes = image.planes.map((p) => p.bytes).toList();
     final rowStrides = image.planes.map((p) => p.bytesPerRow).toList();
@@ -83,9 +87,15 @@ class TfliteLocalDataSourceImpl implements TfliteLocalDataSource {
       height: image.height,
     );
 
-    return await Isolate.run(() {
+    _activeInference = Isolate.run(() {
       return _runInferenceInIsolate(params);
     });
+
+    try {
+      return await _activeInference!;
+    } finally {
+      _activeInference = null;
+    }
   }
 
   static List<DetectionResult> _runInferenceInIsolate(IsolateParams params) {
@@ -252,7 +262,16 @@ class TfliteLocalDataSourceImpl implements TfliteLocalDataSource {
   }
 
   @override
-  void dispose() {
+  Future<void> dispose() async {
+    _isDisposed = true;
+    if (_activeInference != null) {
+      try {
+        await _activeInference;
+      } catch (_) {
+        // Ignorar errores del isolate al cerrar
+      }
+    }
     _interpreter?.close();
+    _interpreter = null;
   }
 }
