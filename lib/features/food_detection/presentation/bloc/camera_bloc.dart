@@ -18,7 +18,6 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
   CameraBloc(this._repository, this._tfliteDataSource) : super(CameraInitial()) {
     on<InitializeCamera>(_onInitializeCamera);
     on<FrameCaptured>(_onFrameCaptured);
-    on<DisposeCamera>(_onDisposeCamera);
   }
 
   Future<void> _onInitializeCamera(InitializeCamera event, Emitter<CameraState> emit) async {
@@ -76,7 +75,8 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     }
   }
 
-  Future<void> _onDisposeCamera(DisposeCamera event, Emitter<CameraState> emit) async {
+  @override
+  Future<void> close() async {
     if (_controller != null) {
       if (_controller!.value.isStreamingImages) {
         await _controller!.stopImageStream();
@@ -85,6 +85,6 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
       _controller = null;
     }
     _tfliteDataSource.dispose();
-    emit(CameraInitial());
+    return super.close();
   }
 }

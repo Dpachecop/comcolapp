@@ -31,12 +31,7 @@ class _CameraScreenContentState extends State<_CameraScreenContent> {
   int frameCount = 0;
   bool isModalOpen = false;
 
-  @override
-  void dispose() {
-    // REGLA DE MEMORIA: Liberar recursos explícitamente
-    context.read<CameraBloc>().add(DisposeCamera());
-    super.dispose();
-  }
+
 
   void _handleDetection(CameraDetectionSuccess state) {
     if (isModalOpen || state.detections.isEmpty) return;
