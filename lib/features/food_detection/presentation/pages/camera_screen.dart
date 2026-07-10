@@ -28,25 +28,32 @@ class _CameraScreenContent extends StatefulWidget {
 }
 
 class _CameraScreenContentState extends State<_CameraScreenContent> {
-  String? currentFood;
-  int frameCount = 0;
+  final List<String> _recentDetections = [];
+  static const int windowSize = 3;
+  static const int requiredVotes = 2;
   bool isModalOpen = false;
 
   void _handleDetection(CameraDetectionSuccess state) {
-    if (isModalOpen || state.detections.isEmpty) return;
+    if (isModalOpen) return;
 
-    final bestDetection = state.detections.reduce((a, b) => a.confidence > b.confidence ? a : b);
-
-    if (bestDetection.label == currentFood) {
-      frameCount++;
-    } else {
-      currentFood = bestDetection.label;
-      frameCount = 1;
+    String currentLabel = 'none';
+    if (state.detections.isNotEmpty) {
+      final bestDetection = state.detections.reduce((a, b) => a.confidence > b.confidence ? a : b);
+      currentLabel = bestDetection.label;
     }
 
-    if (frameCount >= 5 && !isModalOpen) {
-      isModalOpen = true;
-      _showNutritionModal(currentFood!);
+    _recentDetections.add(currentLabel);
+    if (_recentDetections.length > windowSize) {
+      _recentDetections.removeAt(0);
+    }
+
+    if (currentLabel != 'none') {
+      int count = _recentDetections.where((label) => label == currentLabel).length;
+      if (count >= requiredVotes && !isModalOpen) {
+        isModalOpen = true;
+        _recentDetections.clear();
+        _showNutritionModal(currentLabel);
+      }
     }
   }
 
@@ -54,8 +61,7 @@ class _CameraScreenContentState extends State<_CameraScreenContent> {
     final nutritionInfo = LocalNutritionData.data[foodKey.toLowerCase()];
     if (nutritionInfo == null) {
       isModalOpen = false;
-      frameCount = 0;
-      currentFood = null;
+      _recentDetections.clear();
       return;
     }
 
@@ -120,8 +126,7 @@ class _CameraScreenContentState extends State<_CameraScreenContent> {
       },
     ).then((_) {
       isModalOpen = false;
-      frameCount = 0;
-      currentFood = null;
+      _recentDetections.clear();
     });
   }
 
