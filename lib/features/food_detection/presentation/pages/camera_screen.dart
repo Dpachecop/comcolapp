@@ -28,40 +28,21 @@ class _CameraScreenContent extends StatefulWidget {
 }
 
 class _CameraScreenContentState extends State<_CameraScreenContent> {
-  final List<String> _recentDetections = [];
-  static const int windowSize = 3;
-  static const int requiredVotes = 2;
   bool isModalOpen = false;
 
   void _handleDetection(CameraDetectionSuccess state) {
-    if (isModalOpen) return;
+    if (isModalOpen || state.detections.isEmpty) return;
 
-    String currentLabel = 'none';
-    if (state.detections.isNotEmpty) {
-      final bestDetection = state.detections.reduce((a, b) => a.confidence > b.confidence ? a : b);
-      currentLabel = bestDetection.label;
-    }
-
-    _recentDetections.add(currentLabel);
-    if (_recentDetections.length > windowSize) {
-      _recentDetections.removeAt(0);
-    }
-
-    if (currentLabel != 'none') {
-      int count = _recentDetections.where((label) => label == currentLabel).length;
-      if (count >= requiredVotes && !isModalOpen) {
-        isModalOpen = true;
-        _recentDetections.clear();
-        _showNutritionModal(currentLabel);
-      }
-    }
+    final bestDetection = state.detections.reduce((a, b) => a.confidence > b.confidence ? a : b);
+    
+    isModalOpen = true;
+    _showNutritionModal(bestDetection.label);
   }
 
   void _showNutritionModal(String foodKey) {
     final nutritionInfo = LocalNutritionData.data[foodKey.toLowerCase()];
     if (nutritionInfo == null) {
       isModalOpen = false;
-      _recentDetections.clear();
       return;
     }
 
@@ -126,7 +107,6 @@ class _CameraScreenContentState extends State<_CameraScreenContent> {
       },
     ).then((_) {
       isModalOpen = false;
-      _recentDetections.clear();
     });
   }
 
