@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:camera/camera.dart';
 import '../../domain/entities/detection_result.dart';
+import '../../domain/entities/nutrition_info.dart';
 
 abstract class CameraState extends Equatable {
   const CameraState();
@@ -30,13 +31,18 @@ class CameraDetectionSuccess extends CameraState {
   final CameraController controller;
   final List<DetectionResult> detections;
 
+  /// Ficha nutricional de la detección con mayor confianza, o `null` si el
+  /// alimento detectado no tiene datos registrados.
+  final NutritionInfo? nutrition;
+
   const CameraDetectionSuccess({
     required this.controller,
     required this.detections,
+    this.nutrition,
   });
 
   @override
-  List<Object?> get props => [controller, detections];
+  List<Object?> get props => [controller, detections, nutrition];
 }
 
 class CameraError extends CameraState {

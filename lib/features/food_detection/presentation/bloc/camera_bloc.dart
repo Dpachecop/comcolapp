@@ -1,7 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:camera/camera.dart';
 import 'package:injectable/injectable.dart';
+import '../../domain/entities/detection_result.dart';
+import '../../domain/entities/nutrition_info.dart';
 import '../../domain/repositories/food_detection_repository.dart';
+import '../../domain/repositories/nutrition_repository.dart';
 import '../../data/datasources/tflite_local_data_source.dart';
 import 'camera_event.dart';
 import 'camera_state.dart';
@@ -9,13 +12,15 @@ import 'camera_state.dart';
 @injectable
 class CameraBloc extends Bloc<CameraEvent, CameraState> {
   final FoodDetectionRepository _repository;
+  final NutritionRepository _nutritionRepository;
   final TfliteLocalDataSource _tfliteDataSource;
-  
+
   CameraController? _controller;
   bool _isProcessing = false;
   int _frameCount = 0;
 
-  CameraBloc(this._repository, this._tfliteDataSource) : super(CameraInitial()) {
+  CameraBloc(this._repository, this._nutritionRepository, this._tfliteDataSource)
+      : super(CameraInitial()) {
     on<InitializeCamera>(_onInitializeCamera);
     on<FrameCaptured>(_onFrameCaptured);
   }
@@ -68,11 +73,20 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
         emit(CameraDetectionSuccess(
           controller: currentController,
           detections: results,
+          nutrition: _resolveNutrition(results),
         ));
       }
     } finally {
       _isProcessing = false;
     }
+  }
+
+  /// Busca la ficha nutricional de la detección con mayor confianza.
+  NutritionInfo? _resolveNutrition(List<DetectionResult> detections) {
+    if (detections.isEmpty) return null;
+
+    final best = detections.reduce((a, b) => a.confidence > b.confidence ? a : b);
+    return _nutritionRepository.getNutritionFor(best.label);
   }
 
   @override

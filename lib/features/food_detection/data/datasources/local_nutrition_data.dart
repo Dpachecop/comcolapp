@@ -1,26 +1,4 @@
-class NutritionInfo {
-  final String title;
-  final String description;
-  final String portion;
-  final int calories;
-  final double carbs;
-  final double protein;
-  final double fat;
-  final String? sodium;
-  final String? fiber;
-
-  const NutritionInfo({
-    required this.title,
-    required this.description,
-    required this.portion,
-    required this.calories,
-    required this.carbs,
-    required this.protein,
-    required this.fat,
-    this.sodium,
-    this.fiber,
-  });
-}
+import '../../domain/entities/nutrition_info.dart';
 
 class LocalNutritionData {
   static const Map<String, NutritionInfo> data = {

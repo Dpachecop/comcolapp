@@ -13,8 +13,12 @@ import 'package:comcolapp/features/food_detection/data/datasources/tflite_local_
     as _i248;
 import 'package:comcolapp/features/food_detection/data/repositories/food_detection_repository_impl.dart'
     as _i917;
+import 'package:comcolapp/features/food_detection/data/repositories/nutrition_repository_impl.dart'
+    as _i241;
 import 'package:comcolapp/features/food_detection/domain/repositories/food_detection_repository.dart'
     as _i252;
+import 'package:comcolapp/features/food_detection/domain/repositories/nutrition_repository.dart'
+    as _i368;
 import 'package:comcolapp/features/food_detection/presentation/bloc/camera_bloc.dart'
     as _i1005;
 import 'package:get_it/get_it.dart' as _i174;
@@ -34,9 +38,13 @@ extension GetItInjectableX on _i174.GetIt {
       () =>
           _i917.FoodDetectionRepositoryImpl(gh<_i248.TfliteLocalDataSource>()),
     );
+    gh.factory<_i368.NutritionRepository>(
+      () => _i241.NutritionRepositoryImpl(),
+    );
     gh.factory<_i1005.CameraBloc>(
       () => _i1005.CameraBloc(
         gh<_i252.FoodDetectionRepository>(),
+        gh<_i368.NutritionRepository>(),
         gh<_i248.TfliteLocalDataSource>(),
       ),
     );

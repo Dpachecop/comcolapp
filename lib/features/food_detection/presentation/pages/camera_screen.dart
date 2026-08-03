@@ -6,7 +6,7 @@ import '../bloc/camera_bloc.dart';
 import '../bloc/camera_event.dart';
 import '../bloc/camera_state.dart';
 import '../../domain/entities/detection_result.dart';
-import '../../data/datasources/local_nutrition_data.dart';
+import '../../domain/entities/nutrition_info.dart';
 
 class CameraScreen extends StatelessWidget {
   const CameraScreen({super.key});
@@ -31,21 +31,14 @@ class _CameraScreenContentState extends State<_CameraScreenContent> {
   bool isModalOpen = false;
 
   void _handleDetection(CameraDetectionSuccess state) {
-    if (isModalOpen || state.detections.isEmpty) return;
+    final nutritionInfo = state.nutrition;
+    if (isModalOpen || nutritionInfo == null) return;
 
-    final bestDetection = state.detections.reduce((a, b) => a.confidence > b.confidence ? a : b);
-    
     isModalOpen = true;
-    _showNutritionModal(bestDetection.label);
+    _showNutritionModal(nutritionInfo);
   }
 
-  void _showNutritionModal(String foodKey) {
-    final nutritionInfo = LocalNutritionData.data[foodKey.toLowerCase()];
-    if (nutritionInfo == null) {
-      isModalOpen = false;
-      return;
-    }
-
+  void _showNutritionModal(NutritionInfo nutritionInfo) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
