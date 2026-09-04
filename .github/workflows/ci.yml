@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          channel: stable
+          cache: true
+
+      - name: Instalar dependencias
+        run: flutter pub get
+
+      - name: Verificar que el código generado esté al día
+        run: |
+          dart run build_runner build --delete-conflicting-outputs
+          git diff --exit-code lib/core/injection/injection.config.dart \
+            || (echo "::error::injection.config.dart está desactualizado. Corré 'dart run build_runner build --delete-conflicting-outputs' y commiteá el resultado." && exit 1)
+
+      - name: Análisis estático
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test

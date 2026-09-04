@@ -1,22 +1,24 @@
 import 'package:equatable/equatable.dart';
-import 'package:camera/camera.dart';
+import '../../domain/entities/camera_frame.dart';
 
-abstract class CameraEvent extends Equatable {
+sealed class CameraEvent extends Equatable {
   const CameraEvent();
 
   @override
   List<Object?> get props => [];
 }
 
-class InitializeCamera extends CameraEvent {}
-
-class FrameCaptured extends CameraEvent {
-  final CameraImage image;
-
-  const FrameCaptured(this.image);
-
-  @override
-  List<Object?> get props => [image];
+/// Carga el modelo y abre la cámara.
+class InitializeCamera extends CameraEvent {
+  const InitializeCamera();
 }
 
-class DisposeCamera extends CameraEvent {}
+/// Un frame seleccionado para inferencia (ya pasó el filtro de throttling).
+class FrameCaptured extends CameraEvent {
+  const FrameCaptured(this.frame);
+
+  final CameraFrame frame;
+
+  @override
+  List<Object?> get props => [frame];
+}

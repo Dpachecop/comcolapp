@@ -1,81 +1,85 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:camera/camera.dart';
 import 'package:injectable/injectable.dart';
+
+import '../../../../core/errors/failures.dart';
+import '../../../../core/services/camera_service.dart';
+import '../../domain/entities/camera_frame.dart';
 import '../../domain/entities/detection_result.dart';
 import '../../domain/entities/nutrition_info.dart';
 import '../../domain/repositories/food_detection_repository.dart';
 import '../../domain/repositories/nutrition_repository.dart';
-import '../../data/datasources/tflite_local_data_source.dart';
 import 'camera_event.dart';
 import 'camera_state.dart';
 
 @injectable
 class CameraBloc extends Bloc<CameraEvent, CameraState> {
-  final FoodDetectionRepository _repository;
-  final NutritionRepository _nutritionRepository;
-  final TfliteLocalDataSource _tfliteDataSource;
-
-  CameraController? _controller;
-  bool _isProcessing = false;
-  int _frameCount = 0;
-
-  CameraBloc(this._repository, this._nutritionRepository, this._tfliteDataSource)
-      : super(CameraInitial()) {
+  CameraBloc(
+    this._detectionRepository,
+    this._nutritionRepository,
+    this._cameraService,
+  ) : super(const CameraInitial()) {
     on<InitializeCamera>(_onInitializeCamera);
     on<FrameCaptured>(_onFrameCaptured);
   }
 
-  Future<void> _onInitializeCamera(InitializeCamera event, Emitter<CameraState> emit) async {
-    emit(CameraLoading());
+  final FoodDetectionRepository _detectionRepository;
+  final NutritionRepository _nutritionRepository;
+  final CameraService _cameraService;
+
+  /// Se procesa 1 de cada [_frameSkip] frames. Sin este filtro la inferencia
+  /// satura CPU y memoria.
+  static const int _frameSkip = 10;
+
+  StreamSubscription<CameraFrame>? _frameSubscription;
+  bool _isProcessing = false;
+  int _frameCount = 0;
+
+  Future<void> _onInitializeCamera(
+    InitializeCamera event,
+    Emitter<CameraState> emit,
+  ) async {
+    emit(const CameraLoading());
     try {
-      await _tfliteDataSource.initialize();
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) {
-        emit(const CameraError('No cameras available'));
-        return;
-      }
+      await _detectionRepository.initialize();
+      await _cameraService.initialize();
 
-      _controller = CameraController(
-        cameras.first,
-        ResolutionPreset.medium,
-        enableAudio: false,
-      );
-
-      await _controller!.initialize();
-      
-      _controller!.startImageStream((image) {
-        // Procesar 1 de cada 10 frames para no saturar memoria/CPU
-        _frameCount++;
-        if (_frameCount % 10 == 0 && !_isProcessing) {
-          add(FrameCaptured(image));
-        }
-      });
-
-      emit(CameraReady(controller: _controller!));
+      _frameSubscription = _cameraService.frames.listen(_onServiceFrame);
+      emit(const CameraReady());
+    } on Failure catch (failure) {
+      emit(CameraError(failure));
     } catch (e) {
-      emit(CameraError(e.toString()));
+      emit(CameraError(UnknownFailure(e.toString())));
     }
   }
 
-  Future<void> _onFrameCaptured(FrameCaptured event, Emitter<CameraState> emit) async {
-    if (state is! CameraReady && state is! CameraDetectionSuccess) return;
+  /// Filtra los frames del servicio antes de convertirlos en eventos.
+  void _onServiceFrame(CameraFrame frame) {
+    _frameCount++;
+    if (_frameCount % _frameSkip != 0 || _isProcessing) return;
+    if (isClosed) return;
+    add(FrameCaptured(frame));
+  }
+
+  Future<void> _onFrameCaptured(
+    FrameCaptured event,
+    Emitter<CameraState> emit,
+  ) async {
+    if (state is! CameraReady) return;
     _isProcessing = true;
 
     try {
-      final results = await _repository.detectFood(event.image);
-      
-      // Emitimos el nuevo estado con las detecciones si el controlador sigue activo
-      if (_controller != null && _controller!.value.isInitialized) {
-        final currentController = (state is CameraReady) 
-            ? (state as CameraReady).controller 
-            : (state is CameraDetectionSuccess ? (state as CameraDetectionSuccess).controller : _controller!);
-
-        emit(CameraDetectionSuccess(
-          controller: currentController,
-          detections: results,
-          nutrition: _resolveNutrition(results),
-        ));
-      }
+      final results = await _detectionRepository.detectFood(event.frame);
+      emit(CameraReady(
+        detections: results,
+        nutrition: _resolveNutrition(results),
+      ));
+    } on InferenceFailure {
+      // Un frame que falla es transitorio: se descarta y se sigue con el
+      // siguiente en lugar de tumbar la sesión de cámara.
+    } on Failure catch (failure) {
+      emit(CameraError(failure));
     } finally {
       _isProcessing = false;
     }
@@ -91,14 +95,10 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
 
   @override
   Future<void> close() async {
-    if (_controller != null) {
-      if (_controller!.value.isStreamingImages) {
-        await _controller!.stopImageStream();
-      }
-      await _controller!.dispose();
-      _controller = null;
-    }
-    await _tfliteDataSource.dispose();
+    await _frameSubscription?.cancel();
+    _frameSubscription = null;
+    await _cameraService.dispose();
+    await _detectionRepository.dispose();
     return super.close();
   }
 }

@@ -9,6 +9,8 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+import 'package:comcolapp/core/services/camera_service.dart' as _i850;
+import 'package:comcolapp/core/services/camera_service_impl.dart' as _i683;
 import 'package:comcolapp/features/food_detection/data/datasources/tflite_local_data_source.dart'
     as _i248;
 import 'package:comcolapp/features/food_detection/data/repositories/food_detection_repository_impl.dart'
@@ -41,11 +43,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i368.NutritionRepository>(
       () => _i241.NutritionRepositoryImpl(),
     );
+    gh.lazySingleton<_i850.CameraService>(() => _i683.CameraServiceImpl());
     gh.factory<_i1005.CameraBloc>(
       () => _i1005.CameraBloc(
         gh<_i252.FoodDetectionRepository>(),
         gh<_i368.NutritionRepository>(),
-        gh<_i248.TfliteLocalDataSource>(),
+        gh<_i850.CameraService>(),
       ),
     );
     return this;

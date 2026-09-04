@@ -1,5 +1,5 @@
-import 'package:camera/camera.dart';
 import 'package:injectable/injectable.dart';
+import '../../domain/entities/camera_frame.dart';
 import '../../domain/entities/detection_result.dart';
 import '../../domain/repositories/food_detection_repository.dart';
 import '../datasources/tflite_local_data_source.dart';
@@ -11,7 +11,13 @@ class FoodDetectionRepositoryImpl implements FoodDetectionRepository {
   FoodDetectionRepositoryImpl(this._dataSource);
 
   @override
-  Future<List<DetectionResult>> detectFood(CameraImage image) async {
-    return _dataSource.processImage(image);
+  Future<void> initialize() => _dataSource.initialize();
+
+  @override
+  Future<List<DetectionResult>> detectFood(CameraFrame frame) {
+    return _dataSource.processFrame(frame);
   }
+
+  @override
+  Future<void> dispose() => _dataSource.dispose();
 }
